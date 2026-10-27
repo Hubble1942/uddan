@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dev-dist/
+coverage/
+*.local
+
+# Generated or downloaded by scripts/prepare-assets.ts
+public/fonts/
+public/egm96-1deg.bin
