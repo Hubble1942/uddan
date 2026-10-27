@@ -1,0 +1,67 @@
+* Invented airspaces for Uddan's tests. Not real data; do not fly with this.
+*
+* Each one exercises one kind of geometry record.
+
+AC CTR
+AN Testdorf CTR
+AL GND
+AH 4500ft MSL
+AY CTR
+AF 120.105
+AG Testdorf Tower
+SP 0,1,0,0,0
+SB -1,-1,-1
+DP 46:57:30 N 007:26:10 E
+DP 46:57:30 N 007:36:10 E
+DP 46:50:00 N 007:36:10 E
+DP 46:50:00 N 007:26:10 E
+
+AC d
+AN Musterberg Circle
+AL 1000ft AGL
+AH FL95
+V X=46:45.000 N 7:30.000 E
+DC 2
+
+AC R
+AN Quarter Clockwise
+AL 2000m
+AH UNL
+V X=46:40:00N 007:00:00E
+DP 46:40:00N 007:00:00E
+DA 5,0,90
+
+AC Q
+AN Quarter Anticlockwise
+AL 3000 m MSL
+AH FL125
+V D=-
+V X=46:40:00N 008:00:00E
+DP 46:40:00N 008:00:00E
+DA 5, 90, 0
+
+AC Q
+AN Quarter After Reset
+AL 3000 m MSL
+AH FL125
+V X=46:40:00N 009:00:00E
+DP 46:40:00N 009:00:00E
+DA 5, 0, 90
+
+AC GP
+AN Short Way Between Points
+AL GND
+AH 2000ft AGL
+AT 46:30:00 N 007:30:00 E
+V X=46:30:00 N 007:30:00 E
+DP 46:30:00 N 007:30:00 E
+DB 46:35:00 N 007:30:00 E, 46:30:00 N 007:37:17 E
+
+AC GP
+AN Long Way Between Points
+AL GND
+AH 2000ft AGL
+V D=-
+V X=46:30:00 N 008:30:00 E
+DB 46:35:00 N 008:30:00 E, 46:30:00 N 008:37:17 E
+XY Some record nobody knows

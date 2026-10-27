@@ -1,0 +1,29 @@
+* Invented, deliberately faulty airspaces for Uddan's tests. Not real data.
+
+AC D
+AN Two Points Only
+AL GND
+AH 3000ft
+DP 46:00:00 N 007:00:00 E
+DP 46:10:00 N 007:00:00 E
+
+AC TMZ
+AN Odd Limits
+AL somewhere low
+AH NOTAM
+DP 46:00:00 N 007:00:00 E
+DP 46:10:00 N 007:00:00 E
+DP 46:10:00 N 007:10:00 E
+DP not a coordinate
+
+AC RMZ
+AN No Limits At All
+DP 46:00:00 N 008:00:00 E
+DP 46:10:00 N 008:00:00 E
+DP 46:10:00 N 008:10:00 E
+
+AC W
+AN Circle Without Centre
+AL GND
+AH FL100
+DC 3
