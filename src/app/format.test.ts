@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeText, formatAltitude, formatDuration, formatSpeed, igcFileName } from './format';
+import { decodeText, formatAltitude, formatDuration, formatSpeed, igcFileName, steppedReadout } from './format';
 
 describe('display formatting', () => {
   it('shows Altitude in whole metres', () => {
@@ -30,5 +30,36 @@ describe('decodeText', () => {
 
   it('falls back to Windows-1252 for old OpenAIR files', () => {
     expect(decodeText(new Uint8Array([0x41, 0x4e, 0x20, 0x5a, 0xfc, 0x72, 0x69, 0x63, 0x68]).buffer)).toBe('AN Zürich');
+  });
+});
+
+describe('steppedReadout', () => {
+  it('rounds to 5 m steps', () => {
+    const step = steppedReadout();
+    expect(step(1232)).toBe(1230);
+    expect(step(null)).toBeNull();
+    expect(step(1233.5)).toBe(1235);
+  });
+
+  it('holds the shown value while the reading jitters around a step boundary', () => {
+    const step = steppedReadout();
+    expect(step(1232.4)).toBe(1230);
+    expect(step(1232.6)).toBe(1230);
+    expect(step(1233.4)).toBe(1230);
+    expect(step(1232.0)).toBe(1230);
+  });
+
+  it('moves once the reading is clearly past the boundary', () => {
+    const step = steppedReadout();
+    expect(step(1230)).toBe(1230);
+    expect(step(1233.6)).toBe(1235);
+    expect(step(1231.6)).toBe(1235);
+    expect(step(1231.4)).toBe(1230);
+  });
+
+  it('jumps straight to a far-away value', () => {
+    const step = steppedReadout();
+    expect(step(1230)).toBe(1230);
+    expect(step(1301)).toBe(1300);
   });
 });

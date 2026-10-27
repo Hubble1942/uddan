@@ -20,3 +20,16 @@ export function decodeText(bytes: ArrayBuffer): string {
     return new TextDecoder('windows-1252').decode(bytes);
   }
 }
+
+/**
+ * Rounds readings to steps for display, holding the shown value until the reading is clearly
+ * past the next step boundary, so a value hovering at a boundary doesn't flicker.
+ */
+export function steppedReadout(step = 5, hysteresis = 1) {
+  let shown: number | null = null;
+  return (value: number | null): number | null => {
+    if (value === null) return (shown = null);
+    if (shown === null || Math.abs(value - shown) > step / 2 + hysteresis) shown = Math.round(value / step) * step;
+    return shown;
+  };
+}

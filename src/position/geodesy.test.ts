@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bearing, distance } from './geodesy';
+import { bearing, continueAngle, distance } from './geodesy';
 
 describe('distance', () => {
   it('measures one degree of latitude as about 111 km', () => {
@@ -18,5 +18,21 @@ describe('bearing', () => {
 
   it('points north-west', () => {
     expect(bearing({ lat: 46, lon: 8 }, { lat: 46.01, lon: 7.99 })).toBeCloseTo(325.2, 0);
+  });
+});
+
+describe('continueAngle', () => {
+  it('turns the short way across north', () => {
+    expect(continueAngle(350, 10)).toBe(370);
+    expect(continueAngle(10, 350)).toBe(-10);
+  });
+
+  it('keeps counting from an unwrapped angle', () => {
+    expect(continueAngle(730, 20)).toBe(740);
+    expect(continueAngle(-370, 340)).toBe(-380);
+  });
+
+  it('turns clockwise for exactly half a turn', () => {
+    expect(continueAngle(0, 180)).toBe(180);
   });
 });

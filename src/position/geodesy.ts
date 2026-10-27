@@ -19,3 +19,12 @@ export function bearing(a: { lat: number; lon: number }, b: { lat: number; lon: 
   const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(dλ);
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
+
+/**
+ * The angle to turn to from an unwrapped current angle so that the turn to the target
+ * heading (0..360) takes the short way. Lets an animation rotate smoothly across north.
+ */
+export function continueAngle(current: number, target: number): number {
+  const delta = ((((target - current) % 360) + 540) % 360) - 180;
+  return current + (delta === -180 ? 180 : delta);
+}

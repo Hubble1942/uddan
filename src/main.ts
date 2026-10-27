@@ -4,9 +4,10 @@ import * as maplibregl from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { registerSW } from 'virtual:pwa-register';
 import { parseOpenAir, type Airspace } from './airspace';
-import { decodeText, formatAltitude, formatSpeed } from './app/format';
+import { decodeText, formatAltitude, formatSpeed, steppedReadout } from './app/format';
 import { $, download, renderAirspaceClasses, renderAirspaceFiles, renderFlights } from './app/menu';
-import { addOverlays, markRelevantAirspaces, showAirspaces, showPilot, showTrackLog } from './app/overlays';
+import { addOverlays, markRelevantAirspaces, showAirspaces, showTrackLog } from './app/overlays';
+import { createPilotMarker } from './app/pilotMarker';
 import { FlightRecorder, parseIgc, writeIgc, type RecordedFlight } from './flight';
 import { registerTileProtocol } from './map/protocol';
 import { terrainMapStyle } from './map/style';
@@ -82,6 +83,7 @@ async function main() {
   map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
   await map.once('load');
   addOverlays(map);
+  const pilot = createPilotMarker(map);
 
   // --- Airspace ---------------------------------------------------------------
 
@@ -181,6 +183,8 @@ async function main() {
   let lastTrack: number | null = null;
   let lastFixArrival = 0;
   let lastUserMove = 0;
+  const shownAltitude = steppedReadout();
+  const shownHeightAboveGround = steppedReadout();
 
   const newRecorder = (keepFlights: boolean) =>
     new FlightRecorder({
@@ -208,13 +212,13 @@ async function main() {
     recorder.push(fix, heightAboveGround);
     prefetcher.update(fix);
 
-    $('altitude').textContent = formatAltitude(fix.altitude);
-    $('height-above-ground').textContent = heightAboveGround === null ? '–' : `≈${formatAltitude(heightAboveGround)}`;
+    $('altitude').textContent = formatAltitude(shownAltitude(fix.altitude));
+    $('height-above-ground').textContent = formatAltitude(shownHeightAboveGround(heightAboveGround));
     $('ground-speed').textContent = formatSpeed(groundSpeed);
     $('recorder-status').textContent = recorder.status;
     $<HTMLButtonElement>('stop-flight').hidden = recorder.status === 'waiting';
 
-    showPilot(map, fix, lastTrack);
+    pilot.update(fix, lastTrack);
     showTrackLog(map, recorder.status === 'waiting' ? [] : recorder.trackLog);
     refreshRelevance();
     if (Date.now() - lastUserMove > FOLLOW_PAUSE) map.jumpTo({ center: [fix.lon, fix.lat] });
