@@ -7,6 +7,11 @@ export function formatDuration(ms: number): string {
   return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
 }
 
+export function formatElapsed(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  return `${formatDuration(ms)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
 /** IGC long file name: date, manufacturer, recorder and the Flight number of that day. */
 export function igcFileName(launchTime: number, flightOfDay: number): string {
   return `${new Date(launchTime).toISOString().slice(0, 10)}-XXX-UDDAN-${String(flightOfDay).padStart(2, '0')}.igc`;

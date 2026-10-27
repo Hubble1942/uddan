@@ -72,4 +72,56 @@ describe('replay source', () => {
     vi.advanceTimersByTime(500);
     expect(received.map((f) => f.time)).toEqual([fix(0).time, fix(8).time]);
   });
+
+  it('knows the time span of the recording', () => {
+    const replay = createReplaySource([fix(0), fix(5), fix(9)]);
+    expect(replay.startTime).toBe(fix(0).time);
+    expect(replay.endTime).toBe(fix(9).time);
+  });
+
+  it('jumps to the first Fix at or after a time and plays on from there', () => {
+    const received: Fix[] = [];
+    const replay = createReplaySource([fix(0), fix(1), fix(2), fix(3), fix(4)]);
+    replay.start((f) => received.push(f));
+    replay.seek(fix(2).time + 500);
+    expect(received.at(-1)?.time).toBe(fix(3).time);
+    vi.advanceTimersByTime(1000);
+    expect(received.at(-1)?.time).toBe(fix(4).time);
+  });
+
+  it('shows the Fix at the new time while paused, then stays paused', () => {
+    const received: Fix[] = [];
+    const replay = createReplaySource([fix(0), fix(1), fix(2), fix(3)]);
+    replay.start((f) => received.push(f));
+    replay.pause();
+    replay.seek(fix(2).time);
+    expect(received.at(-1)?.time).toBe(fix(2).time);
+    vi.advanceTimersByTime(5000);
+    expect(received.at(-1)?.time).toBe(fix(2).time);
+    replay.resume();
+    vi.advanceTimersByTime(1000);
+    expect(received.at(-1)?.time).toBe(fix(3).time);
+  });
+
+  it('jumps back in time', () => {
+    const received: Fix[] = [];
+    const replay = createReplaySource([fix(0), fix(1), fix(2)]);
+    replay.start((f) => received.push(f));
+    vi.advanceTimersByTime(2000);
+    replay.seek(fix(0).time);
+    expect(received.at(-1)?.time).toBe(fix(0).time);
+  });
+
+  it('starts over when resumed after the end', () => {
+    const received: Fix[] = [];
+    const onEnd = vi.fn();
+    const replay = createReplaySource([fix(0), fix(1)], { onEnd });
+    replay.start((f) => received.push(f));
+    vi.advanceTimersByTime(1000);
+    expect(onEnd).toHaveBeenCalledOnce();
+    expect(replay.ended).toBe(true);
+    replay.resume();
+    expect(received.at(-1)?.time).toBe(fix(0).time);
+    expect(replay.ended).toBe(false);
+  });
 });

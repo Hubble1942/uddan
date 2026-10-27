@@ -14,9 +14,22 @@
       <div><span class="label">Altitude</span><span id="altitude">–</span></div>
       <div><span class="label">Above ground</span><span id="height-above-ground">–</span></div>
       <div><span class="label">Speed</span><span id="ground-speed">–</span></div>
-      <div><span class="label">Track Log</span><span id="recorder-status">waiting</span></div>
       <div id="no-gps" hidden>NO GPS</div>
-      <div id="source-label"></div>
+    </section>
+
+    <section id="replay-panel" aria-label="Replay" hidden>
+      <div class="row">
+        <label class="button" title="Select IGC file">IGC file…<input id="replay-file" type="file" accept=".igc,.IGC" hidden /></label>
+        <button id="replay-play" type="button" title="Play" disabled>▶</button>
+        <div id="replay-speed" class="segmented" role="group" aria-label="Replay speed">
+          <button type="button" data-speed="1" aria-pressed="true">1×</button>
+          <button type="button" data-speed="4" aria-pressed="false">4×</button>
+          <button type="button" data-speed="16" aria-pressed="false">16×</button>
+        </div>
+      </div>
+      <div id="replay-file-name" class="hint">No IGC file selected</div>
+      <input id="replay-timeline" type="range" min="0" max="0" step="1000" value="0" aria-label="Replay time" disabled />
+      <div class="replay-times"><span id="replay-elapsed">0:00:00</span><span id="replay-total">0:00:00</span></div>
     </section>
 
     <div id="buttons">
@@ -32,21 +45,11 @@
 
       <section>
         <h2>Position</h2>
-        <p id="position-status"></p>
-        <div class="row">
-          <button id="use-gps" type="button">Use GPS</button>
-          <label class="button">Replay IGC file…<input id="replay-file" type="file" accept=".igc,.IGC" hidden /></label>
+        <div class="segmented" role="group" aria-label="Position mode">
+          <button id="mode-live" type="button" aria-pressed="true">Live</button>
+          <button id="mode-replay" type="button" aria-pressed="false">Replay</button>
         </div>
-        <div id="replay-controls" class="row" hidden>
-          <button id="replay-pause" type="button">Pause</button>
-          <label>Speed
-            <select id="replay-speed">
-              <option value="1">1×</option>
-              <option value="4">4×</option>
-              <option value="16">16×</option>
-            </select>
-          </label>
-        </div>
+        <p id="position-status" class="hint"></p>
       </section>
 
       <section>

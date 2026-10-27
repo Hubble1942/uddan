@@ -8,6 +8,7 @@ import { decodeText, formatAltitude, formatSpeed, steppedReadout } from './app/f
 import { $, download, renderAirspaceClasses, renderAirspaceFiles, renderFlights } from './app/menu';
 import { addOverlays, markRelevantAirspaces, showAirspaces, showTrackLog } from './app/overlays';
 import { createPilotMarker } from './app/pilotMarker';
+import { createReplayPanel } from './app/replayPanel';
 import { FlightRecorder, parseIgc, writeIgc, type RecordedFlight } from './flight';
 import { registerTileProtocol } from './map/protocol';
 import { terrainMapStyle } from './map/style';
@@ -16,7 +17,7 @@ import type { Fix, PositionSource } from './position/fix';
 import { bearing, distance } from './position/geodesy';
 import { createGeolocationSource } from './position/geolocationSource';
 import { createGeoid, GEOID_FILE } from './position/geoid';
-import { createReplaySource, type ReplaySource, type ReplaySpeed } from './position/replaySource';
+import { createReplaySource, type ReplaySource } from './position/replaySource';
 import { openStorage } from './storage/storage';
 import { createGroundElevation, type DecodedImage } from './terrain/groundElevation';
 import { createPrefetcher, runPrefetcher } from './tiles/prefetcher';
@@ -215,71 +216,107 @@ async function main() {
     $('altitude').textContent = formatAltitude(shownAltitude(fix.altitude));
     $('height-above-ground').textContent = formatAltitude(shownHeightAboveGround(heightAboveGround));
     $('ground-speed').textContent = formatSpeed(groundSpeed);
-    $('recorder-status').textContent = recorder.status;
     $<HTMLButtonElement>('stop-flight').hidden = recorder.status === 'waiting';
 
-    pilot.update(fix, lastTrack);
+    pilot.update(fix, lastTrack, recorder.status === 'recording');
     showTrackLog(map, recorder.status === 'waiting' ? [] : recorder.trackLog);
+    if (replay) replayPanel.setTime(fix.time);
     refreshRelevance();
     if (Date.now() - lastUserMove > FOLLOW_PAUSE) map.jumpTo({ center: [fix.lon, fix.lat] });
   };
 
-  const useSource = (next: PositionSource, label: string, keepFlights: boolean) => {
-    source?.stop();
+  /** Forgets the path so far, e.g. when the Position Source changes or a Replay jumps in time. */
+  const restartTracking = (keepFlights: boolean) => {
     recorder.stop();
     recorder = newRecorder(keepFlights);
     lastFix = undefined;
     lastTrack = null;
     lastFixArrival = performance.now();
+    showTrackLog(map, []);
+    pilot.setFlying(false);
+    $<HTMLButtonElement>('stop-flight').hidden = true;
+    $('altitude').textContent = formatAltitude(shownAltitude(null));
+    $('height-above-ground').textContent = formatAltitude(shownHeightAboveGround(null));
+    $('ground-speed').textContent = formatSpeed(null);
+  };
+
+  const useSource = (next: PositionSource | undefined, label: string, keepFlights: boolean) => {
+    source?.stop();
+    restartTracking(keepFlights);
     source = next;
-    $('source-label').textContent = label;
     $('position-status').textContent = label;
-    next.start(onFix, (message) => ($('position-status').textContent = `${label}: ${message}`));
+    next?.start(onFix, (message) => ($('position-status').textContent = `${label}: ${message}`));
   };
 
-  const useGps = () => {
-    replay = undefined;
-    $('replay-controls').hidden = true;
-    useSource(createGeolocationSource(geoid), 'GPS', true);
-  };
-  $('use-gps').addEventListener('click', useGps);
+  let mode: 'live' | 'replay' = 'live';
+  let replayFile: { name: string; fixes: Fix[]; altitudeReference: string } | undefined;
 
-  $<HTMLInputElement>('replay-file').addEventListener('change', async (event) => {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
-    const parsed = parseIgc(await file.text());
-    if (parsed.fixes.length === 0) {
-      $('position-status').textContent = `${file.name} contains no Fixes.`;
+  // A Replay drives Launch and Landing detection but never adds to the Flight List.
+  const startReplay = (autoplay: boolean) => {
+    if (!replayFile) {
+      useSource(undefined, 'Replay: no IGC file', false);
       return;
     }
-    replay = createReplaySource(parsed.fixes, {
-      altitudeToMsl: (f) => (f.altitude !== null && parsed.altitudeReference === 'ellipsoid' ? f.altitude - geoid(f.lat, f.lon) : f.altitude),
-      onEnd: () => ($('source-label').textContent = `Replay of ${file.name} finished`),
+    const { name, fixes, altitudeReference } = replayFile;
+    replay = createReplaySource(fixes, {
+      altitudeToMsl: (f) => (f.altitude !== null && altitudeReference === 'ellipsoid' ? f.altitude - geoid(f.lat, f.lon) : f.altitude),
+      onEnd: () => replayPanel.setPlaying(false),
     });
-    replay.setSpeed(Number($<HTMLSelectElement>('replay-speed').value) as ReplaySpeed);
-    $('replay-pause').textContent = 'Pause';
-    $('replay-controls').hidden = false;
-    // A Replay drives Launch and Landing detection but never adds to the Flight List.
-    useSource(replay, `Replay: ${file.name}`, false);
+    replay.setSpeed(replayPanel.speed);
+    replayPanel.load(name, replay.startTime, replay.endTime);
+    if (!autoplay) replay.pause();
+    replayPanel.setPlaying(autoplay);
+    useSource(replay, `Replay: ${name}`, false);
+    if (!autoplay) replay.seek(replay.startTime);
     lastUserMove = 0;
+  };
+
+  const replayPanel = createReplayPanel({
+    onFile: async (file) => {
+      const parsed = parseIgc(await file.text());
+      if (parsed.fixes.length === 0) {
+        $('replay-file-name').textContent = `${file.name} contains no Fixes`;
+        return;
+      }
+      replayFile = { name: file.name, fixes: parsed.fixes, altitudeReference: parsed.altitudeReference };
+      startReplay(true);
+    },
+    onPlayPause: () => {
+      if (!replay) return;
+      if (replay.ended) restartTracking(false);
+      if (replay.paused || replay.ended) replay.resume();
+      else replay.pause();
+      replayPanel.setPlaying(!replay.paused);
+    },
+    onSpeed: (speed) => replay?.setSpeed(speed),
+    onSeek: (time) => {
+      if (!replay) return;
+      restartTracking(false);
+      replay.seek(time);
+      if (replay.ended) replayPanel.setPlaying(false);
+    },
   });
 
-  $('replay-pause').addEventListener('click', () => {
-    if (!replay) return;
-    if (replay.paused) replay.resume();
-    else replay.pause();
-    $('replay-pause').textContent = replay.paused ? 'Resume' : 'Pause';
-  });
-  $<HTMLSelectElement>('replay-speed').addEventListener('change', (event) => {
-    replay?.setSpeed(Number((event.target as HTMLSelectElement).value) as ReplaySpeed);
+  const setMode = (next: 'live' | 'replay') => {
+    mode = next;
+    $('mode-live').setAttribute('aria-pressed', String(mode === 'live'));
+    $('mode-replay').setAttribute('aria-pressed', String(mode === 'replay'));
+    replayPanel.show(mode === 'replay');
+    replay = undefined;
+    if (mode === 'live') useSource(createGeolocationSource(geoid), 'GPS', true);
+    else startReplay(false);
+  };
+  $('mode-live').addEventListener('click', () => mode !== 'live' && setMode('live'));
+  $('mode-replay').addEventListener('click', () => {
+    if (mode !== 'replay') setMode('replay');
+    $<HTMLDialogElement>('menu').close();
   });
 
   $('stop-flight').addEventListener('click', () => {
     recorder.stop();
-    $('recorder-status').textContent = recorder.status;
     showTrackLog(map, []);
+    pilot.setFlying(false);
+    $<HTMLButtonElement>('stop-flight').hidden = true;
   });
 
   // Keep the in-progress Track Log safe against crashes and reloads.
@@ -289,8 +326,7 @@ async function main() {
   }, SAVE_IN_PROGRESS_EVERY);
 
   setInterval(() => {
-    const paused = replay?.paused ?? false;
-    $('no-gps').hidden = !source || paused || performance.now() - lastFixArrival < NO_GPS_AFTER;
+    $('no-gps').hidden = mode === 'replay' || performance.now() - lastFixArrival < NO_GPS_AFTER;
   }, 1000);
 
   // --- Following the pilot ----------------------------------------------------
@@ -327,7 +363,7 @@ async function main() {
   $('open-menu').addEventListener('click', () => menu.showModal());
 
   await loadAirspaces();
-  useGps();
+  setMode('live');
 }
 
 void main();

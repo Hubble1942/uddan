@@ -64,9 +64,6 @@ body {
   font-weight: 700;
 }
 
-#source-label {
-  font-size: 0.75rem;
-}
 
 #buttons {
   position: absolute;
@@ -203,4 +200,94 @@ dialog input[type='number'] {
   height: 48px;
   transition-property: transform;
   transition-timing-function: linear;
+}
+
+.pilot-dot {
+  position: absolute;
+  inset: 14px;
+  background: #f5b700;
+  border: 3px solid #000;
+  border-radius: 50%;
+}
+
+/* Arrow while flying, dot otherwise. */
+.pilot-marker:not(.flying) .pilot-arrow,
+.pilot-marker.flying .pilot-dot {
+  visibility: hidden;
+}
+
+.segmented {
+  display: inline-flex;
+}
+
+.segmented button {
+  border-radius: 0;
+}
+
+.segmented button + button {
+  border-left-width: 0;
+}
+
+.segmented button:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.segmented button:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.segmented button[aria-pressed='true'] {
+  color: var(--paper);
+  background: var(--ink);
+}
+
+#replay-panel {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  right: 8px;
+  width: min(22rem, 100vw - 16px);
+  box-sizing: border-box;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+}
+
+#replay-panel .row {
+  margin: 0 0 6px;
+}
+
+#replay-play {
+  min-width: 3rem;
+}
+
+#replay-file-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+#replay-timeline {
+  width: 100%;
+  margin: 8px 0 2px;
+  accent-color: var(--accent);
+}
+
+.replay-times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Narrow screens: keep the readout visible and put the Replay panel at the bottom. */
+@media (max-width: 640px) {
+  #replay-panel {
+    top: auto;
+    right: 76px;
+    /* Clear of the map attribution, which spans the bottom edge on narrow screens. */
+    bottom: max(64px, env(safe-area-inset-bottom));
+    left: 8px;
+    width: auto;
+  }
 }

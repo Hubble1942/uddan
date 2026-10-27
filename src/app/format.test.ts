@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeText, formatAltitude, formatDuration, formatSpeed, igcFileName, steppedReadout } from './format';
+import { decodeText, formatAltitude, formatDuration, formatElapsed, formatSpeed, igcFileName, steppedReadout } from './format';
 
 describe('display formatting', () => {
   it('shows Altitude in whole metres', () => {
@@ -61,5 +61,12 @@ describe('steppedReadout', () => {
     const step = steppedReadout();
     expect(step(1230)).toBe(1230);
     expect(step(1301)).toBe(1300);
+  });
+});
+
+describe('formatElapsed', () => {
+  it('shows hours, minutes and seconds', () => {
+    expect(formatElapsed(0)).toBe('0:00:00');
+    expect(formatElapsed(3 * 3600_000 + 7 * 60_000 + 5_400)).toBe('3:07:05');
   });
 });

@@ -7,8 +7,8 @@ const ARROW = `<svg viewBox="0 0 48 48" width="48" height="48" aria-hidden="true
 </svg>`;
 
 /**
- * The pilot's arrow. It turns smoothly to each new track over roughly the time until the
- * next Fix, always the short way round.
+ * The pilot's position: an arrow while flying, a dot otherwise. The arrow turns smoothly to
+ * each new track over roughly the time until the next Fix, always the short way round.
  */
 export function createPilotMarker(map: maplibregl.Map) {
   const element = document.createElement('div');
@@ -16,7 +16,9 @@ export function createPilotMarker(map: maplibregl.Map) {
   const arrow = document.createElement('div');
   arrow.className = 'pilot-arrow';
   arrow.innerHTML = ARROW;
-  element.append(arrow);
+  const dot = document.createElement('div');
+  dot.className = 'pilot-dot';
+  element.append(arrow, dot);
 
   const marker = new maplibregl.Marker({ element, anchor: 'center' });
   let added = false;
@@ -24,7 +26,8 @@ export function createPilotMarker(map: maplibregl.Map) {
   let lastUpdate = 0;
 
   return {
-    update(fix: Fix, track: number | null) {
+    update(fix: Fix, track: number | null, flying: boolean) {
+      this.setFlying(flying);
       marker.setLngLat([fix.lon, fix.lat]);
       if (!added) {
         marker.addTo(map);
@@ -37,6 +40,9 @@ export function createPilotMarker(map: maplibregl.Map) {
       angle = continueAngle(angle, (track - map.getBearing() + 360) % 360);
       arrow.style.transitionDuration = `${interval}ms`;
       arrow.style.transform = `rotate(${angle}deg)`;
+    },
+    setFlying(flying: boolean) {
+      element.classList.toggle('flying', flying);
     },
   };
 }
