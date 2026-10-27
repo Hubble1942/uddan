@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1d4e89" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <title>Uddan</title>
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <section id="readout" aria-live="polite">
+      <div><span class="label">Altitude</span><span id="altitude">–</span></div>
+      <div><span class="label">Above ground</span><span id="height-above-ground">–</span></div>
+      <div><span class="label">Speed</span><span id="ground-speed">–</span></div>
+      <div><span class="label">Track Log</span><span id="recorder-status">waiting</span></div>
+      <div id="no-gps" hidden>NO GPS</div>
+      <div id="source-label"></div>
+    </section>
+
+    <div id="buttons">
+      <button id="recenter" type="button" title="Back to my position" hidden>◎</button>
+      <button id="open-menu" type="button" title="Menu">☰</button>
+    </div>
+
+    <dialog id="menu">
+      <form method="dialog" class="menu-header">
+        <h1>Uddan</h1>
+        <button type="submit" title="Close">✕</button>
+      </form>
+
+      <section>
+        <h2>Position</h2>
+        <p id="position-status"></p>
+        <div class="row">
+          <button id="use-gps" type="button">Use GPS</button>
+          <label class="button">Replay IGC file…<input id="replay-file" type="file" accept=".igc,.IGC" hidden /></label>
+        </div>
+        <div id="replay-controls" class="row" hidden>
+          <button id="replay-pause" type="button">Pause</button>
+          <label>Speed
+            <select id="replay-speed">
+              <option value="1">1×</option>
+              <option value="4">4×</option>
+              <option value="16">16×</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Airspace</h2>
+        <ul id="airspace-files" class="list"></ul>
+        <label class="button">Load OpenAIR file…<input id="airspace-file" type="file" accept=".txt,.air,.openair" hidden multiple /></label>
+        <p id="airspace-warnings" class="hint"></p>
+        <h3>Visible classes</h3>
+        <div id="airspace-classes" class="chips"></div>
+        <label>Vertical Margin (m) <input id="vertical-margin" type="number" min="0" max="1000" step="10" /></label>
+      </section>
+
+      <section>
+        <h2>Flights</h2>
+        <button id="stop-flight" type="button" hidden>End current Flight</button>
+        <ul id="flight-list" class="list"></ul>
+      </section>
+
+      <section>
+        <h2>Pilot</h2>
+        <label>Name <input id="pilot-name" type="text" autocomplete="name" /></label>
+        <label>Glider <input id="glider" type="text" /></label>
+      </section>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

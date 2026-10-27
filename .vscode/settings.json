@@ -8,5 +8,25 @@
   "editor.detectIndentation": false,
   "[markdown]": {
     "files.trimTrailingWhitespace": false
-  }
+  },
+  "cSpell.words": [
+    "Uddan",
+    "Mapterhorn",
+    "hillshade",
+    "OpenAIR",
+    "OpenFreeMap",
+    "OpenMapTiles",
+    "OpenTopoMap",
+    "geoid",
+    "Terrarium",
+    "maplibre",
+    "prefetch",
+    "prefetched",
+    "prefetcher",
+    "IGC",
+    "AMSL",
+    "AGL",
+    "NOTAM",
+    "PMTiles"
+  ]
 }

@@ -1,7 +1,9 @@
 // Writes a synthetic IGC flight for desk testing with Replay: one minute standing at the
 // Niederhorn launch, a run and takeoff, three thermal circles, a glide to Interlaken,
-// landing and two minutes standing. Usage: npx tsx scripts/make-demo-flight.ts <out.igc>
-import { writeFileSync } from 'node:fs';
+// landing and two minutes standing. Writes to the gitignored tracks/ directory.
+// Usage: npx tsx scripts/make-demo-flight.ts [file name, default demo-flight.igc]
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { writeIgc } from '../src/flight';
 import type { Fix } from '../src/position/fix';
 
@@ -38,6 +40,8 @@ while (altitude > 600) {
 for (let i = 0; i < 6; i++) step(90, 2, -(altitude - 570) / 6);
 for (let i = 0; i < 120; i++) step(0, 0, 0);
 
-const out = process.argv[2] ?? 'demo-flight.igc';
+const tracksDir = fileURLToPath(new URL('../tracks/', import.meta.url));
+mkdirSync(tracksDir, { recursive: true });
+const out = tracksDir + (process.argv[2] ?? 'demo-flight.igc');
 writeFileSync(out, writeIgc({ pilot: 'Demo Pilot', glider: 'Demo Glider', appVersion: 'demo' }, fixes));
 console.log(`wrote ${fixes.length} Fixes to ${out}`);

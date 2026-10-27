@@ -1,0 +1,193 @@
+:root {
+  --ink: #111;
+  --paper: #fff;
+  --accent: #1d4e89;
+  --warn: #c62828;
+  font-family: system-ui, sans-serif;
+  color: var(--ink);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #f2efe6;
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+}
+
+#readout {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  left: 8px;
+  display: grid;
+  gap: 2px;
+  min-width: 11rem;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+#readout > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+#readout .label {
+  font-size: 0.75rem;
+  align-self: center;
+  opacity: 0.7;
+}
+
+#altitude {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+#no-gps {
+  justify-content: center !important;
+  padding: 2px;
+  color: var(--paper);
+  background: var(--warn);
+  font-weight: 700;
+}
+
+#source-label {
+  font-size: 0.75rem;
+}
+
+#buttons {
+  position: absolute;
+  right: 10px;
+  bottom: max(36px, env(safe-area-inset-bottom));
+  display: grid;
+  gap: 10px;
+}
+
+#buttons button {
+  width: 56px;
+  height: 56px;
+  font-size: 1.6rem;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+}
+
+button,
+.button {
+  display: inline-block;
+  padding: 8px 12px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+dialog#menu {
+  width: min(32rem, 100vw - 32px);
+  max-height: calc(100vh - 32px);
+  padding: 0 16px 16px;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+}
+
+.menu-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--paper);
+}
+
+dialog h1 {
+  font-size: 1.3rem;
+}
+
+dialog h2 {
+  margin: 1.2rem 0 0.5rem;
+  font-size: 1.1rem;
+  border-bottom: 1px solid #ccc;
+}
+
+dialog h3 {
+  margin: 0.8rem 0 0.3rem;
+  font-size: 0.95rem;
+}
+
+dialog label {
+  display: block;
+  margin: 0.5rem 0;
+}
+
+dialog label.button {
+  display: inline-block;
+}
+
+dialog input[type='text'],
+dialog input[type='number'] {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px;
+  font: inherit;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0.5rem 0;
+}
+
+.list {
+  margin: 0.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.list li button {
+  padding: 4px 8px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chips label {
+  margin: 0;
+  padding: 4px 8px;
+  border: 1px solid #999;
+  border-radius: 999px;
+}
+
+.hint {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
