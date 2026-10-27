@@ -42,9 +42,24 @@ export interface RecordedFlight {
   landingTime: number;
 }
 
+/** Everything a recorder knows, as plain data, so it can resume after a reload. */
+export interface RecorderSnapshot {
+  status: RecorderStatus;
+  previous: Fix | null;
+  buffer: Fix[];
+  movingSince: number | null;
+  stillSince: number | null;
+  flightFixes: Fix[];
+  afterLanding: Fix[];
+  launchTime: number;
+  landingTime: number;
+}
+
 export interface FlightRecorderOptions {
   thresholds?: Partial<FlightRecorderThresholds>;
   onFlight?: (flight: RecordedFlight) => void;
+  /** Resume from a snapshot taken with snapshot(). */
+  restore?: RecorderSnapshot;
 }
 
 /** Detects Launch and Landing from a stream of Fixes and records the Track Log of each Flight. */
@@ -66,6 +81,32 @@ export class FlightRecorder {
   constructor(options: FlightRecorderOptions = {}) {
     this.thresholds = { ...flightRecorderDefaults, ...options.thresholds };
     this.onFlight = options.onFlight ?? (() => {});
+    const s = options.restore;
+    if (s) {
+      this.currentStatus = s.status;
+      this.previous = s.previous;
+      this.buffer = [...s.buffer];
+      this.movingSince = s.movingSince;
+      this.stillSince = s.stillSince;
+      this.flightFixes = [...s.flightFixes];
+      this.afterLanding = [...s.afterLanding];
+      this.launchTime = s.launchTime;
+      this.landingTime = s.landingTime;
+    }
+  }
+
+  snapshot(): RecorderSnapshot {
+    return {
+      status: this.currentStatus,
+      previous: this.previous,
+      buffer: [...this.buffer],
+      movingSince: this.movingSince,
+      stillSince: this.stillSince,
+      flightFixes: [...this.flightFixes],
+      afterLanding: [...this.afterLanding],
+      launchTime: this.launchTime,
+      landingTime: this.landingTime,
+    };
   }
 
   get status(): RecorderStatus {

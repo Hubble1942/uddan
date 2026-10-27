@@ -12,7 +12,7 @@ class Pilot {
   time = T0;
   lat = 46.5;
   readonly flights: RecordedFlight[] = [];
-  readonly recorder: FlightRecorder;
+  recorder: FlightRecorder;
 
   constructor(thresholds: Partial<typeof flightRecorderDefaults> = {}) {
     this.recorder = new FlightRecorder({ thresholds, onFlight: (f) => this.flights.push(f) });
@@ -292,5 +292,51 @@ describe('FlightRecorder thresholds', () => {
     p.time += 5 * SECOND;
     p.move(25, 30, 100);
     expect(p.recorder.status).toBe('recording');
+  });
+});
+
+describe('FlightRecorder snapshot', () => {
+  /** Swaps the pilot's recorder for one restored from a JSON round trip of its snapshot, as after a reload. */
+  const reload = (pilot: Pilot) => {
+    const snapshot = JSON.parse(JSON.stringify(pilot.recorder.snapshot()));
+    pilot.recorder = new FlightRecorder({ restore: snapshot, onFlight: (f) => pilot.flights.push(f) });
+  };
+
+  it('resumes a Flight in progress exactly as if never interrupted', () => {
+    const uninterrupted = new Pilot();
+    const reloaded = new Pilot();
+    for (const pilot of [uninterrupted, reloaded]) {
+      pilot.launch();
+      pilot.move(120, 35, 300);
+    }
+    reload(reloaded);
+    expect(reloaded.recorder.status).toBe('recording');
+    for (const pilot of [uninterrupted, reloaded]) {
+      pilot.land();
+      pilot.stand(6 * 60);
+    }
+    expect(reloaded.flights).toEqual(uninterrupted.flights);
+    expect(reloaded.flights).toHaveLength(1);
+  });
+
+  it('keeps the movement already seen before Launch', () => {
+    const pilot = new Pilot();
+    pilot.stand(60);
+    pilot.move(20, 30, 100);
+    reload(pilot);
+    pilot.move(15, 30, 100);
+    expect(pilot.recorder.status).toBe('recording');
+    expect(pilot.recorder.trackLog[0]?.time).toBe(T0 + SECOND);
+  });
+
+  it('resumes the grace period after a Landing', () => {
+    const pilot = new Pilot();
+    pilot.launch();
+    pilot.land();
+    pilot.stand(5);
+    expect(pilot.recorder.status).toBe('landed');
+    reload(pilot);
+    pilot.stand(6 * 60);
+    expect(pilot.flights).toHaveLength(1);
   });
 });

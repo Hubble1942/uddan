@@ -42,6 +42,9 @@ export function createReplayPanel(handlers: {
     get speed(): ReplaySpeed {
       return Number(speedButtons.find((b) => b.getAttribute('aria-pressed') === 'true')?.dataset.speed ?? 1) as ReplaySpeed;
     },
+    setSpeed(speed: ReplaySpeed) {
+      for (const b of speedButtons) b.setAttribute('aria-pressed', String(Number(b.dataset.speed) === speed));
+    },
     show(visible: boolean) {
       panel.hidden = !visible;
     },

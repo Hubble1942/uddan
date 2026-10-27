@@ -6,5 +6,6 @@ export {
   type FlightRecorderOptions,
   type FlightRecorderThresholds,
   type RecordedFlight,
+  type RecorderSnapshot,
   type RecorderStatus,
 } from './recorder';

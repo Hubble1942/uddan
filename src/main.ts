@@ -9,7 +9,7 @@ import { $, download, renderAirspaceClasses, renderAirspaceFiles, renderFlights 
 import { addOverlays, markRelevantAirspaces, showAirspaces, showTrackLog } from './app/overlays';
 import { createPilotMarker } from './app/pilotMarker';
 import { createReplayPanel } from './app/replayPanel';
-import { FlightRecorder, parseIgc, writeIgc, type RecordedFlight } from './flight';
+import { FlightRecorder, parseIgc, writeIgc, type RecordedFlight, type RecorderSnapshot } from './flight';
 import { registerTileProtocol } from './map/protocol';
 import { terrainMapStyle } from './map/style';
 import { mapterhorn, openFreeMap } from './map/tileSources';
@@ -18,6 +18,7 @@ import { bearing, distance } from './position/geodesy';
 import { createGeolocationSource } from './position/geolocationSource';
 import { createGeoid, GEOID_FILE } from './position/geoid';
 import { createReplaySource, type ReplaySource } from './position/replaySource';
+import { createSessionStore, type SessionState } from './storage/session';
 import { openStorage } from './storage/storage';
 import { createGroundElevation, type DecodedImage } from './terrain/groundElevation';
 import { createPrefetcher, runPrefetcher } from './tiles/prefetcher';
@@ -27,6 +28,7 @@ import { cacheTileStore } from './tiles/tileStore';
 const FOLLOW_PAUSE = 15_000;
 const NO_GPS_AFTER = 5_000;
 const SAVE_IN_PROGRESS_EVERY = 10_000;
+const SAVE_SESSION_EVERY = 3_000;
 
 async function decodeImage(data: ArrayBuffer): Promise<DecodedImage> {
   // Elevation is encoded in the colour values, so the browser must not alter them.
@@ -171,8 +173,20 @@ async function main() {
     await refreshFlights();
   };
 
+  let browserSession: Storage | undefined;
+  try {
+    browserSession = window.sessionStorage;
+  } catch {
+    // Storage blocked; nothing survives a reload.
+  }
+  const session = createSessionStore(browserSession);
+  const restored = session.load();
+
+  // After a reload the session resumes the Flight in progress. Only without one (tab closed,
+  // browser crashed) does the left-over Track Log become a recovered Flight.
   const leftOver = await storage.takeInProgress();
-  if (leftOver && leftOver.length >= 2) await saveFlight(leftOver, leftOver[0]!.time, leftOver.at(-1)!.time, true);
+  const resumesFlight = restored?.mode === 'live' && restored.recorder !== null && restored.recorder.status !== 'waiting';
+  if (!resumesFlight && leftOver && leftOver.length >= 2) await saveFlight(leftOver, leftOver[0]!.time, leftOver.at(-1)!.time, true);
   await refreshFlights();
 
   // --- Position ---------------------------------------------------------------
@@ -187,8 +201,11 @@ async function main() {
   const shownAltitude = steppedReadout();
   const shownHeightAboveGround = steppedReadout();
 
-  const newRecorder = (keepFlights: boolean) =>
+  let sessionChanged = false;
+
+  const newRecorder = (keepFlights: boolean, restore?: RecorderSnapshot) =>
     new FlightRecorder({
+      restore,
       onFlight: keepFlights ? (f: RecordedFlight) => void saveFlight(f.fixes, f.launchTime, f.landingTime, false) : undefined,
     });
 
@@ -201,6 +218,7 @@ async function main() {
     const previous = lastFix;
     lastFix = fix;
     lastFixArrival = performance.now();
+    sessionChanged = true;
 
     const moved = previous ? distance(previous, fix) : 0;
     const seconds = previous ? (fix.time - previous.time) / 1000 : 0;
@@ -238,6 +256,20 @@ async function main() {
     $('altitude').textContent = formatAltitude(shownAltitude(null));
     $('height-above-ground').textContent = formatAltitude(shownHeightAboveGround(null));
     $('ground-speed').textContent = formatSpeed(null);
+    sessionChanged = true;
+  };
+
+  /** Picks up the Track Log, Flight state and position from before a reload. */
+  const resumeTracking = (state: SessionState, keepFlights: boolean) => {
+    recorder = newRecorder(keepFlights, state.recorder ?? undefined);
+    lastFix = state.lastFix ?? undefined;
+    lastTrack = state.lastTrack;
+    showTrackLog(map, recorder.status === 'waiting' ? [] : recorder.trackLog);
+    $<HTMLButtonElement>('stop-flight').hidden = recorder.status === 'waiting';
+    if (lastFix) {
+      pilot.update(lastFix, lastTrack, recorder.status === 'recording');
+      map.jumpTo({ center: [lastFix.lon, lastFix.lat] });
+    }
   };
 
   const useSource = (next: PositionSource | undefined, label: string, keepFlights: boolean) => {
@@ -249,10 +281,16 @@ async function main() {
   };
 
   let mode: 'live' | 'replay' = 'live';
-  let replayFile: { name: string; fixes: Fix[]; altitudeReference: string } | undefined;
+  let replayFile: { name: string; igc: string; fixes: Fix[]; altitudeReference: string } | undefined;
+
+  const readReplayFile = (name: string, igc: string) => {
+    const parsed = parseIgc(igc);
+    if (parsed.fixes.length === 0) return undefined;
+    return { name, igc, fixes: parsed.fixes, altitudeReference: parsed.altitudeReference };
+  };
 
   // A Replay drives Launch and Landing detection but never adds to the Flight List.
-  const startReplay = (autoplay: boolean) => {
+  const startReplay = (autoplay: boolean, resume?: SessionState) => {
     if (!replayFile) {
       useSource(undefined, 'Replay: no IGC file', false);
       return;
@@ -260,25 +298,37 @@ async function main() {
     const { name, fixes, altitudeReference } = replayFile;
     replay = createReplaySource(fixes, {
       altitudeToMsl: (f) => (f.altitude !== null && altitudeReference === 'ellipsoid' ? f.altitude - geoid(f.lat, f.lon) : f.altitude),
-      onEnd: () => replayPanel.setPlaying(false),
+      onEnd: () => {
+        replayPanel.setPlaying(false);
+        sessionChanged = true;
+      },
     });
+    if (resume?.replay) replayPanel.setSpeed(resume.replay.speed);
     replay.setSpeed(replayPanel.speed);
     replayPanel.load(name, replay.startTime, replay.endTime);
-    if (!autoplay) replay.pause();
-    replayPanel.setPlaying(autoplay);
+    replay.pause();
     useSource(replay, `Replay: ${name}`, false);
-    if (!autoplay) replay.seek(replay.startTime);
-    lastUserMove = 0;
+    if (resume?.replay) {
+      // Continue right after the last Fix shown before the reload.
+      resumeTracking(resume, false);
+      replay.seek(resume.replay.time + 1);
+      autoplay = !resume.replay.paused;
+    } else {
+      replay.seek(replay.startTime);
+      lastUserMove = 0;
+    }
+    if (autoplay && !replay.ended) replay.resume();
+    replayPanel.setPlaying(!replay.paused && !replay.ended);
   };
 
   const replayPanel = createReplayPanel({
     onFile: async (file) => {
-      const parsed = parseIgc(await file.text());
-      if (parsed.fixes.length === 0) {
+      const read = readReplayFile(file.name, await file.text());
+      if (!read) {
         $('replay-file-name').textContent = `${file.name} contains no Fixes`;
         return;
       }
-      replayFile = { name: file.name, fixes: parsed.fixes, altitudeReference: parsed.altitudeReference };
+      replayFile = read;
       startReplay(true);
     },
     onPlayPause: () => {
@@ -287,8 +337,12 @@ async function main() {
       if (replay.paused || replay.ended) replay.resume();
       else replay.pause();
       replayPanel.setPlaying(!replay.paused);
+      sessionChanged = true;
     },
-    onSpeed: (speed) => replay?.setSpeed(speed),
+    onSpeed: (speed) => {
+      replay?.setSpeed(speed);
+      sessionChanged = true;
+    },
     onSeek: (time) => {
       if (!replay) return;
       restartTracking(false);
@@ -297,14 +351,18 @@ async function main() {
     },
   });
 
-  const setMode = (next: 'live' | 'replay') => {
+  const setMode = (next: 'live' | 'replay', resume?: SessionState) => {
     mode = next;
     $('mode-live').setAttribute('aria-pressed', String(mode === 'live'));
     $('mode-replay').setAttribute('aria-pressed', String(mode === 'replay'));
     replayPanel.show(mode === 'replay');
     replay = undefined;
-    if (mode === 'live') useSource(createGeolocationSource(geoid), 'GPS', true);
-    else startReplay(false);
+    if (mode === 'live') {
+      useSource(createGeolocationSource(geoid), 'GPS', true);
+      if (resume) resumeTracking(resume, true);
+    } else {
+      startReplay(false, resume);
+    }
   };
   $('mode-live').addEventListener('click', () => mode !== 'live' && setMode('live'));
   $('mode-replay').addEventListener('click', () => {
@@ -319,7 +377,34 @@ async function main() {
     $<HTMLButtonElement>('stop-flight').hidden = true;
   });
 
-  // Keep the in-progress Track Log safe against crashes and reloads.
+  const saveSession = () => {
+    if (!sessionChanged) return;
+    sessionChanged = false;
+    const saved = session.save({
+      mode,
+      recorder: recorder.snapshot(),
+      lastFix: lastFix ?? null,
+      lastTrack,
+      replay:
+        mode === 'replay' && replayFile && replay
+          ? {
+              name: replayFile.name,
+              igc: replayFile.igc,
+              time: lastFix?.time ?? replay.startTime,
+              speed: replayPanel.speed,
+              paused: replay.paused || replay.ended,
+            }
+          : null,
+    });
+    if (!saved) console.warn('Session state could not be stored; a reload starts afresh.');
+  };
+  setInterval(saveSession, SAVE_SESSION_EVERY);
+  window.addEventListener('pagehide', () => {
+    sessionChanged = true;
+    saveSession();
+  });
+
+  // Keep the in-progress Track Log safe against crashes.
   setInterval(() => {
     if (replay || recorder.status === 'waiting') return;
     void storage.saveInProgress([...recorder.trackLog]);
@@ -363,7 +448,8 @@ async function main() {
   $('open-menu').addEventListener('click', () => menu.showModal());
 
   await loadAirspaces();
-  setMode('live');
+  if (restored?.replay) replayFile = readReplayFile(restored.replay.name, restored.replay.igc);
+  setMode(restored?.mode ?? 'live', restored);
 }
 
 void main();
