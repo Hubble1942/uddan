@@ -1,14 +1,5 @@
 {
-  "files.encoding": "utf8",
   "files.eol": "\n",
-  "files.insertFinalNewline": true,
-  "files.trimTrailingWhitespace": true,
-  "editor.insertSpaces": true,
-  "editor.tabSize": 2,
-  "editor.detectIndentation": false,
-  "[markdown]": {
-    "files.trimTrailingWhitespace": false
-  },
   "cSpell.words": [
     "Uddan",
     "Mapterhorn",
